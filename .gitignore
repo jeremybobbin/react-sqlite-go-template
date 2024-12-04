@@ -1,0 +1,9 @@
+node_modules
+
+config.mk
+
+*.mjs
+
+react-sqlite-go-template
+public/index.js
+sql.db
