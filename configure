@@ -1,0 +1,120 @@
+#!/bin/sh -e
+
+ESCFLAGS=
+ESLFLAGS=
+
+for arg; do
+	case "$arg" in
+	GO=*)             GO="${arg##*=}";;
+	NPM=*)           NPM="${arg##*=}";;
+	SQL=*)           SQL="${arg##*=}";;
+	ESC=*)           ESC="${arg##*=}";;
+	ESL=*)           ESL="${arg##*=}";;
+	ESCFLAGS=*) ESCFLAGS="${arg##*=}";;
+	ESLFLAGS=*) ESLFLAGS="${arg##*=}";;
+	esac
+done
+
+resolve() {
+	for bin in "$@"; do
+		if type "$bin" 2>/dev/null >&2; then
+			echo "$bin"
+			return 0
+		fi
+	done
+	return 1
+}
+
+go_files() {
+	exec "$GO" list -f '{{ range .GoFiles -}} {{ printf "%s " . }} {{- end }}'
+}
+
+
+if ! [ -r go.mod ] && ! [ -f go.mod ]; then
+	printf "%s: go.mod does is not a readable file. exitting\n" "${0##*/}" >&2
+	exit 1
+elif BIN="$(awk '/^module/ { bin=$2; exit(0) } END {if (bin) print bin; else exit(1) }' go.mod)"; then
+	: # no-op
+else
+	printf "%s: failed to parse go.mod for binary name. exitting\n" "${0##*/}" >&2
+	exit 1
+fi
+
+if [ -n "$GO" ]; then
+	: # no-op
+elif GO=$(resolve go); then
+	: # no-op
+else
+	printf "%s: failed to find golang binary\n" "${0##*/}" >&2
+	exit 1
+fi
+
+# list go file deps
+if ! GO_FILES="$(go_files)"; then
+	printf "%s: failed to find go files\n" "${0##*/}" >&2
+	exit 1
+fi
+
+if [ -n "$SQL" ]; then
+	: # no-op
+elif SQL=$(resolve sqlite3 sqlite); then
+	: # no-op
+else
+	printf "%s: failed to find sql binary\n" "${0##*/}" >&2
+	exit 1
+fi
+
+if [ -n "$NPM" ]; then
+	: # no-op
+elif NPM=$(resolve npm); then
+	: # no-op
+else
+	printf "%s: failed to find npm\n" "${0##*/}" >&2
+	exit 1
+fi
+
+if [ -n "$ESC" ]; then
+	: # no-op
+elif ESC=$(resolve esbuild); then
+	: # no-op
+else
+	printf "%s: failed to find esbuild\n" "${0##*/}" >&2
+	exit 1
+fi
+
+if [ -n "$ESCFLAGS" ]; then
+	: # no-op
+else
+	case "$ESC" in
+	esbuild) ESCFLAGS="";;
+	esac
+fi
+
+if [ -n "$ESL" ]; then
+	: # no-op
+else
+	ESL="$ESC"
+fi
+
+if [ -n "$ESLFLAGS" ]; then
+	: # no-op
+else
+	case "$ESL" in
+	esbuild) ESLFLAGS="--sourcemap --bundle";;
+	esac
+fi
+
+
+cat - "in.mk" > Makefile << EOF
+.POSIX:
+
+BIN=$BIN
+GO=$GO
+GO_FILES=$GO_FILES
+SQL=$SQL
+NPM=$NPM
+ESC=$ESC
+ESL=$ESL
+ESLFLAGS=$ESLFLAGS
+
+EOF
