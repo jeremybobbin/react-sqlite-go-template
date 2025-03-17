@@ -3,8 +3,9 @@ package main
 import (
 	"context"
 	"database/sql"
+	"flag"
 	"fmt"
-	//"net"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -18,10 +19,31 @@ type Item struct {
 	Time        time.Time
 }
 
+var (
+	Address = "0.0.0.0"
+	Port    = 8080
+)
+
+func init() {
+	flag.StringVar(&Address, "a", Address, "address for HTTP server")
+	flag.IntVar(&Port, "p", Port, "port for HTTP server")
+	flag.Parse()
+
+	if Port < 1 || Port > 65535 {
+		fmt.Fprintf(os.Stderr, "error - invalid port number: %d\n", Port)
+		os.Exit(1)
+	}
+
+	if ip := net.ParseIP(Address); ip == nil {
+		fmt.Fprintf(os.Stderr, "error - invalid address: %s\n", Address)
+		os.Exit(1)
+	}
+}
+
 func main() {
 	muxer := http.NewServeMux()
 	server := &http.Server{
-		Addr:    "localhost:8080",
+		Addr:    fmt.Sprintf("%s:%d", Address, Port),
 		Handler: muxer,
 	}
 
@@ -51,7 +73,7 @@ func main() {
 		server.Close()
 	}()
 
-	fmt.Println("serving")
+	fmt.Fprintf(os.Stderr, "serving at %s:%d\n", Address, Port)
 	if err = server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		fmt.Fprintf(os.Stderr, "error closing server: %s\n", err.Error())
 	}
