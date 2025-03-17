@@ -1,0 +1,44 @@
+#!/bin/awk -f
+BEGIN {
+	"tput setaf 7" | getline white
+	"tput setaf 2" | getline green
+	"tput setaf 1" | getline red
+}
+
+!(/CONSOLE/ && NF > 2 && $((NF-2)) == "source:") {
+	next
+}
+
+{
+	path=$((NF-1))
+	line=$((NF))
+
+	#      https : / /     localhost            :8080    / path
+	sub(/(https?:\/\/)?[a-zA-Z0-9.-]+(\.[a-z])?(:[0-9]+)?\/?/, "public/", path)
+	gsub(/[\)\(]/, "", line)
+
+	"./debug/source-map " path " " line | getline source
+
+	$((1))=""
+	$((NF-0))=""
+	$((NF-1))=""
+	$((NF-2))=""
+	sub(/,$/, "", $((NF-3)))
+	$((0))=source $0
+}
+
+/Uncaught/ {
+	print red $0 white > "/dev/stderr"
+	next
+}
+
+{
+	print green $0 white > "/dev/stderr"
+}
+
+#/CONSOLE/ {
+	#$1=""
+	#print green $0 black
+#}
+
+#!/^\[[A-Z0-9_:/.\(\)\]]+/

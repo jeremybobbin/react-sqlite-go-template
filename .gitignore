@@ -7,3 +7,4 @@ Makefile
 
 react-sqlite-go-template
 sql.db
+.cache

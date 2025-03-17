@@ -3,6 +3,9 @@
 ESCFLAGS=
 ESLFLAGS=
 
+react=react
+environment=development
+
 for arg; do
 	case "$arg" in
 	GO=*)             GO="${arg##*=}";;
@@ -12,6 +15,11 @@ for arg; do
 	ESL=*)           ESL="${arg##*=}";;
 	ESCFLAGS=*) ESCFLAGS="${arg##*=}";;
 	ESLFLAGS=*) ESLFLAGS="${arg##*=}";;
+	--react) react=react;;
+	--preact) react=preact;;
+	--production) environment=production;;
+	--development) environment=development;;
+	*) echo "unrecognized option: $arg"; exit 1
 	esac
 done
 
@@ -26,14 +34,15 @@ resolve() {
 }
 
 go_files() {
-	exec "$GO" list -f '{{ range .GoFiles -}} {{ printf "%s " . }} {{- end }}'
+	go list -f '{{ $v := printf "%s" .Dir -}}  {{ range .GoFiles }} {{- printf "%s/%s\n" $v . -}} {{ end }}'  ./... |
+		sed "s,^$PWD/,,"
 }
 
 
 if ! [ -r go.mod ] && ! [ -f go.mod ]; then
 	printf "%s: go.mod does is not a readable file. exitting\n" "${0##*/}" >&2
 	exit 1
-elif BIN="$(awk '/^module/ { bin=$2; exit(0) } END {if (bin) print bin; else exit(1) }' go.mod)"; then
+elif BIN="$(basename $(go list -f '{{.Target}}'))"; then
 	: # no-op
 else
 	printf "%s: failed to parse go.mod for binary name. exitting\n" "${0##*/}" >&2
@@ -50,7 +59,7 @@ else
 fi
 
 # list go file deps
-if ! GO_FILES="$(go_files)"; then
+if ! GO_FILES="$(go_files | tr '\n' ' ')"; then
 	printf "%s: failed to find go files\n" "${0##*/}" >&2
 	exit 1
 fi
@@ -99,11 +108,21 @@ fi
 if [ -n "$ESLFLAGS" ]; then
 	: # no-op
 else
-	case "$ESL" in
-	esbuild) ESLFLAGS="--sourcemap --bundle";;
+	case "$environment" in
+	production) ESLFLAGS="--minify --bundle";;
+	development) ESLFLAGS="--sourcemap --bundle";;
 	esac
 fi
 
+
+case "$react" in
+preact)
+	ESLFLAGS="$ESLFLAGS --alias:react=preact/compat"
+	ESLFLAGS="$ESLFLAGS --alias:react-dom=preact/compat"
+	ESLFLAGS="$ESLFLAGS --alias:react-dom/client=preact/compat/client";;
+esac
+
+$NPM install --save --package-lock-only --no-package-lock "$react"
 
 cat - "in.mk" > Makefile << EOF
 .POSIX:
@@ -115,6 +134,7 @@ SQL=$SQL
 NPM=$NPM
 ESC=$ESC
 ESL=$ESL
+ESCFLAGS=$ESCFLAGS
 ESLFLAGS=$ESLFLAGS
 
 EOF

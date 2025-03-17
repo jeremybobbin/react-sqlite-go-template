@@ -1,0 +1,18 @@
+#!/bin/awk -f
+BEGIN {
+	line=ARGV[2]
+	delete ARGV[2]
+}
+/\/\// {
+	f=$2
+	i=NR
+}
+
+NR == line {
+	a = f ":" NR - i ":"
+	exit
+}
+
+END {
+	print a ? a : "???:???:"
+}
