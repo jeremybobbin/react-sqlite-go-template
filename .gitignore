@@ -5,6 +5,6 @@ Makefile
 /*.js
 /*.mjs
 
-react-sqlite-go-template
+react-sqlite-go-template*
 sql.db
 .cache

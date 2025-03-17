@@ -1,0 +1,14 @@
+[Unit]
+Description=@BIN
+After=network-online.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+ExecStart=@PREFIX/bin/@BIN -p @PORT
+StandardOutput=journal+console
+StandardError=inherit
+
+[Install]
+WantedBy=multi-user.target

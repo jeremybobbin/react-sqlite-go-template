@@ -10,7 +10,7 @@
 .sql.db:
 	$(SQL) $@ < $< && touch $@
 
-build: $(BIN) sql.db App.js
+build: $(BIN) sql.db App.js $(BIN).service
 
 run: build
 	./$(BIN)
@@ -25,18 +25,27 @@ view: build
 		"http://localhost:8080/" 2>&1 | \
 			 ./debug/chromium-log
 
+install: build
+	mkdir -p $(PREFIX)/lib/systemd/system/
+	cp $(BIN) $(PREFIX)/bin/$(BIN)
+	mkdir -p $(PREFIX)/lib/systemd/system/
+	cp $(BIN).service $(PREFIX)/lib/systemd/system/$(BIN).service
+
+$(BIN).service: in.service
+	sed 's,@PORT,$(PORT),g; s,@PREFIX,$(PREFIX),g; s,@BIN,$(BIN),g' in.service > $@
+
 $(BIN): $(GO_FILES)
 	go build
 	touch $(BIN)
 
-node_modules: package.json
-	$(NPM) i && touch -c node_modules
+package.json:
+	$(NPM) i $(NPM_PACKAGES) && touch -c $@
 
-App.js: App.mjs Todo.mjs node_modules
+App.js: App.mjs Todo.mjs package.json
 
 clean:
-	rm -f *.js *.mjs
+	rm -f *.js *.mjs ???*.service
 	go clean
 
 nuke: clean
-	rm -rf sql.db node_modules Makefile
+	rm -rf sql.db package.json package-lock.json node_modules Makefile

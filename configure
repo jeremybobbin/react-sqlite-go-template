@@ -2,9 +2,13 @@
 
 ESCFLAGS=
 ESLFLAGS=
+PREFIX="/usr/local"
 
+port=8080
 react=react
+packages="react react-dom"
 environment=development
+
 
 for arg; do
 	case "$arg" in
@@ -15,6 +19,8 @@ for arg; do
 	ESL=*)           ESL="${arg##*=}";;
 	ESCFLAGS=*) ESCFLAGS="${arg##*=}";;
 	ESLFLAGS=*) ESLFLAGS="${arg##*=}";;
+	--port) port="${arg##*=}";;
+	--prefix) PREFIX=="${arg##*=}";;
 	--react) react=react;;
 	--preact) react=preact;;
 	--production) environment=production;;
@@ -116,25 +122,33 @@ fi
 
 
 case "$react" in
+react)
+	packages="react react-dom"
+	;;
 preact)
+	packages="preact"
 	ESLFLAGS="$ESLFLAGS --alias:react=preact/compat"
 	ESLFLAGS="$ESLFLAGS --alias:react-dom=preact/compat"
-	ESLFLAGS="$ESLFLAGS --alias:react-dom/client=preact/compat/client";;
+	ESLFLAGS="$ESLFLAGS --alias:react-dom/client=preact/compat/client"
+	;;
 esac
 
-$NPM install --save --package-lock-only --no-package-lock "$react"
 
 cat - "in.mk" > Makefile << EOF
 .POSIX:
 
+PREFIX=$PREFIX
 BIN=$BIN
+
 GO=$GO
 GO_FILES=$GO_FILES
 SQL=$SQL
 NPM=$NPM
+NPM_PACKAGES=$packages
 ESC=$ESC
 ESL=$ESL
 ESCFLAGS=$ESCFLAGS
 ESLFLAGS=$ESLFLAGS
+PORT=$port
 
 EOF
